@@ -124,6 +124,17 @@ body {
   background: var(--amber);
 }
 
+.mode-error {
+  color: var(--red);
+  background: var(--red-subtle);
+  border-color: rgba(179, 50, 31, 0.3);
+}
+
+.mode-error .mode-dot {
+  background: var(--red);
+  box-shadow: 0 0 6px rgba(179, 50, 31, 0.6);
+}
+
 .issue {
   color: var(--ink-muted);
   font-size: 10px;
@@ -465,6 +476,18 @@ body {
 }
 
 .status-unverified {
+  color: var(--amber);
+  background: var(--amber-subtle);
+  border: 1px solid rgba(196, 138, 53, 0.3);
+}
+
+.status-live {
+  color: var(--green);
+  background: var(--green-subtle);
+  border: 1px solid rgba(31, 111, 92, 0.3);
+}
+
+.status-sample {
   color: var(--amber);
   background: var(--amber-subtle);
   border: 1px solid rgba(196, 138, 53, 0.3);

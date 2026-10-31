@@ -77,8 +77,26 @@ export async function runLocalization(
   // Step 2 & 3: Resolve Entities & Discover Candidates for each reference
   for (const ref of extracted) {
     const resolveStart = Date.now();
-    const resolution = await qlooClient.resolveEntity(ref.originalText, ref.kind);
-    observations.push(resolution.observation);
+    let resolution;
+    try {
+      resolution = await qlooClient.resolveEntity(ref.originalText, ref.kind);
+      observations.push(resolution.observation);
+    } catch (apiErr: any) {
+      const errMsg = apiErr.message || 'Qloo API request failed';
+      addTrace('resolution', 'error', `Qloo API failure during resolution of "${ref.originalText}": ${errMsg}`, Date.now() - resolveStart);
+      decisions.push({
+        referenceId: ref.id,
+        originalText: ref.originalText,
+        kind: ref.kind,
+        action: 'unresolved',
+        reason: `Qloo API error: ${errMsg}. Original reference retained.`,
+        rejectedCandidates: [],
+        evidenceObservationIds: [],
+        modelInterpretation: 'API failure prevented live cultural intelligence resolution. Original copy retained.',
+      });
+      continue;
+    }
+
     const resolveDuration = Date.now() - resolveStart;
 
     if (resolution.status === 'not_found' || !resolution.entity) {
@@ -137,13 +155,31 @@ export async function runLocalization(
 
     // Discover candidates conditioned on target market
     const discoveryStart = Date.now();
-    const discovery = await qlooClient.discoverCandidates({
-      referenceEntity: entity,
-      targetKind: ref.kind,
-      market: request.market,
-      limit: 5,
-    });
-    observations.push(discovery.observation);
+    let discovery;
+    try {
+      discovery = await qlooClient.discoverCandidates({
+        referenceEntity: entity,
+        targetKind: ref.kind,
+        market: request.market,
+        limit: 5,
+      });
+      observations.push(discovery.observation);
+    } catch (apiErr: any) {
+      const errMsg = apiErr.message || 'Qloo candidate discovery failed';
+      addTrace('discovery', 'error', `Qloo candidate discovery failed for "${entity.name}": ${errMsg}`, Date.now() - discoveryStart);
+      decisions.push({
+        referenceId: ref.id,
+        originalText: ref.originalText,
+        kind: ref.kind,
+        action: 'keep',
+        reason: `Qloo candidate discovery error: ${errMsg}. Retaining original reference.`,
+        rejectedCandidates: [],
+        evidenceObservationIds: [resolution.observation.id],
+        modelInterpretation: 'Candidate discovery error. Fallback to original reference to prevent hallucination.',
+      });
+      continue;
+    }
+
     const discoveryDuration = Date.now() - discoveryStart;
 
     addTrace(

@@ -22,15 +22,30 @@ app.use('/api', marketsRouter);
 app.use('/api', localizeRouter);
 
 // Serve static client bundle if built
-if (existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.join(clientDistPath, 'index.html'), (err) => {
-      if (err) next();
-    });
-  });
-}
+app.use(express.static(clientDistPath));
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  const indexPath = path.join(clientDistPath, 'index.html');
+  if (existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  return res.status(200).send(`
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8"/>
+        <title>Transcreate Studio API</title>
+        <style>body{font-family:serif;background:#F4EFE6;color:#16130F;padding:40px;line-height:1.6}h1{font-family:sans-serif}</style>
+      </head>
+      <body>
+        <h1>Transcreate Editorial Studio API</h1>
+        <p>The backend is running. Please run <code>npm run build</code> to compile the client proof sheet.</p>
+        <p><a href="/api/health">Check /api/health</a></p>
+      </body>
+    </html>
+  `);
+});
 
 // Global error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

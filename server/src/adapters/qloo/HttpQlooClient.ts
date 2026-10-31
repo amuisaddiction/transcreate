@@ -10,6 +10,15 @@ const KIND_TO_URN: Record<ReferenceKind, string> = {
   brand: 'urn:entity:brand',
 };
 
+function extractEntityArray(data: any): any[] {
+  if (!data) return [];
+  if (Array.isArray(data.results?.entities)) return data.results.entities;
+  if (Array.isArray(data.results)) return data.results;
+  if (Array.isArray(data.entities)) return data.entities;
+  if (Array.isArray(data.data)) return data.data;
+  return [];
+}
+
 export class HttpQlooClient implements IQlooClient {
   readonly mode = 'live' as const;
   private readonly apiKey: string;
@@ -18,6 +27,12 @@ export class HttpQlooClient implements IQlooClient {
   constructor(apiKey: string, baseUrl: string) {
     this.apiKey = apiKey;
     this.baseUrl = baseUrl.replace(/\/+$/, '');
+  }
+
+  private sanitizeErrorMessage(err: any): string {
+    if (!err) return 'Unknown error';
+    const raw = typeof err === 'string' ? err : (err.message || String(err));
+    return this.apiKey ? raw.replaceAll(this.apiKey, '[REDACTED]') : raw;
   }
 
   private mapKindToUrn(kind?: ReferenceKind): string | undefined {
@@ -76,7 +91,7 @@ export class HttpQlooClient implements IQlooClient {
         const data = (await response.json()) as T;
         return { data, latencyMs, observationId };
       } catch (err: any) {
-        lastError = err;
+        lastError = new Error(this.sanitizeErrorMessage(err));
         if (attempt < maxAttempts && !err.message?.includes('authentication')) {
           await new Promise((r) => setTimeout(r, 600));
         }
@@ -94,7 +109,7 @@ export class HttpQlooClient implements IQlooClient {
         'healthCheck'
       );
 
-      const hasEntities = Boolean(data?.results?.entities?.length);
+      const hasEntities = extractEntityArray(data).length > 0;
       return {
         ok: true,
         message: hasEntities ? 'Qloo live connectivity verified' : 'Connected to Qloo API',
@@ -104,7 +119,7 @@ export class HttpQlooClient implements IQlooClient {
     } catch (err: any) {
       return {
         ok: false,
-        message: err.message ? err.message.replace(this.apiKey, '[REDACTED]') : 'Qloo connection failed',
+        message: this.sanitizeErrorMessage(err),
         latencyMs: 0,
         mode: 'live',
       };
@@ -119,16 +134,15 @@ export class HttpQlooClient implements IQlooClient {
       'resolveEntity'
     );
 
-    const entities: QlooEntity[] = Array.isArray(data?.results?.entities)
-      ? data.results.entities.map((e: any) => ({
-          id: e.id || e.entity_id,
-          name: e.name,
-          type: e.type,
-          subtype: e.subtype,
-          popularity: typeof e.popularity === 'number' ? e.popularity : undefined,
-          properties: e.properties,
-        }))
-      : [];
+    const rawList = extractEntityArray(data);
+    const entities: QlooEntity[] = rawList.map((e: any) => ({
+      id: e.id || e.entity_id || e._id,
+      name: e.name || e.title || e.entity_name,
+      type: e.type,
+      subtype: e.subtype,
+      popularity: typeof e.popularity === 'number' ? e.popularity : undefined,
+      properties: e.properties,
+    })).filter((e) => Boolean(e.name));
 
     const observation: QlooObservation = {
       id: observationId,
@@ -158,7 +172,6 @@ export class HttpQlooClient implements IQlooClient {
     }
 
     if (entities.length > 1 && !exactMatches.length) {
-      // Check if top match is very close
       const top = entities[0];
       if (top.name.toLowerCase().includes(normalizedInput) || normalizedInput.includes(top.name.toLowerCase())) {
         return { status: 'resolved', entity: top, observation };
@@ -190,16 +203,16 @@ export class HttpQlooClient implements IQlooClient {
       'discoverCandidates'
     );
 
-    const rawList = Array.isArray(data?.results?.entities) ? data.results.entities : [];
+    const rawList = extractEntityArray(data);
     const candidates: Candidate[] = rawList.map((e: any) => ({
-      id: e.id || e.entity_id,
-      name: e.name,
+      id: e.id || e.entity_id || e._id,
+      name: e.name || e.title || e.entity_name,
       kind: params.targetKind,
       popularity: typeof e.popularity === 'number' ? e.popularity : undefined,
       affinity: typeof e.query?.affinity === 'number' ? e.query.affinity : (typeof e.affinity === 'number' ? e.affinity : undefined),
       properties: e.properties,
       sourceObservationId: observationId,
-    }));
+    })).filter((c) => Boolean(c.name));
 
     const observation: QlooObservation = {
       id: observationId,
@@ -244,16 +257,16 @@ export class HttpQlooClient implements IQlooClient {
       'rankCandidates'
     );
 
-    const rawList = Array.isArray(data?.results?.entities) ? data.results.entities : [];
+    const rawList = extractEntityArray(data);
     const rankedCandidates: Candidate[] = rawList.map((e: any) => ({
-      id: e.id || e.entity_id,
-      name: e.name,
+      id: e.id || e.entity_id || e._id,
+      name: e.name || e.title || e.entity_name,
       kind: params.targetKind,
       popularity: typeof e.popularity === 'number' ? e.popularity : undefined,
       affinity: typeof e.query?.affinity === 'number' ? e.query.affinity : undefined,
       properties: e.properties,
       sourceObservationId: observationId,
-    }));
+    })).filter((c) => Boolean(c.name));
 
     const observation: QlooObservation = {
       id: observationId,

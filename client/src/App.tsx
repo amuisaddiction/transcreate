@@ -188,6 +188,18 @@ export default function App() {
   };
 
   const isLiveMode = health?.mode === 'live' && health.qlooOk;
+  const isLiveFailed = health?.mode === 'live' && !health.qlooOk;
+
+  let modeBadgeClass = 'mode-sample';
+  let modeBadgeText = 'SAMPLE — NOT QLOO DATA';
+
+  if (isLiveMode) {
+    modeBadgeClass = 'mode-live';
+    modeBadgeText = 'LIVE — QLOO CONNECTED';
+  } else if (isLiveFailed) {
+    modeBadgeClass = 'mode-error';
+    modeBadgeText = 'LIVE FAILED — QLOO ERROR';
+  }
 
   return (
     <main className="shell">
@@ -197,13 +209,22 @@ export default function App() {
           TRANSCREATE<span>®</span>
         </a>
         <div className="topbar-right">
-          <span className={`mode-badge ${isLiveMode ? 'mode-live' : 'mode-sample'}`}>
+          <span className={`mode-badge ${modeBadgeClass}`}>
             <span className="mode-dot" />
-            {isLiveMode ? 'LIVE — QLOO CONNECTED' : 'SAMPLE — NOT QLOO DATA'}
+            {modeBadgeText}
           </span>
           <span className="issue">ISSUE 001 / CULTURAL EDITING STUDIO</span>
         </div>
       </nav>
+
+      {isLiveFailed && (
+        <aside className="error-banner" style={{ margin: '16px 32px 0', maxWidth: '1280px' }} role="alert">
+          <AlertTriangle size={15} />
+          <span>
+            <strong>QLOO API CONNECTION ISSUE:</strong> {health?.qlooMessage || 'Qloo API credentials could not be verified.'} Server is operating in protected fallback mode. Check server <code>QLOO_API_KEY</code>.
+          </span>
+        </aside>
+      )}
 
       {/* Hero Section */}
       <section className="hero">
@@ -374,9 +395,14 @@ export default function App() {
             <div className="pane-head">
               <span>02 / EDITORIAL PROOF SHEET</span>
               {result && (
-                <span className={`status-tag ${result.verified ? 'status-verified' : 'status-unverified'}`}>
-                  {result.verified ? '✓ VERIFIED REWRITE' : 'UNVERIFIED'}
-                </span>
+                <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                  <span className={`status-tag ${result.mode === 'live' ? 'status-live' : 'status-sample'}`}>
+                    {result.mode === 'live' ? 'LIVE QLOO' : 'SAMPLE DATA'}
+                  </span>
+                  <span className={`status-tag ${result.verified ? 'status-verified' : 'status-unverified'}`}>
+                    {result.verified ? '✓ VERIFIED REWRITE' : 'UNVERIFIED'}
+                  </span>
+                </div>
               )}
             </div>
 

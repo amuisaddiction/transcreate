@@ -47,7 +47,7 @@
 - [x] Keyboard focus visible rings and `prefers-reduced-motion` support.
 
 ## 5. Quality, Testing & Security
-- [x] All 10 automated unit and integration tests passing (`npm test`).
+- [x] All 14 automated unit and integration tests passing (`npm test`).
 - [x] Production build passing cleanly for both client and server (`npm run build`).
 - [x] Server-side secrets isolated in `server/.env` (never exposed via `VITE_` or client bundle).
 - [x] `.env` verified ignored by Git.

@@ -124,7 +124,7 @@ npm run dev
 
 ### Running Automated Tests
 ```bash
-# Run all 10 automated unit and integration tests
+# Run all 14 automated unit and integration tests
 npm test
 ```
 
@@ -132,6 +132,20 @@ npm test
 ```bash
 npm run build
 ```
+
+### Single-Service Production Deployment (e.g. Render, Railway)
+Transcreate is configured as a unified single-service full-stack Node deployment. The Express backend serves the precompiled Vite React client from `client/dist`:
+
+* **Build Command:** `npm install --include=dev && npm run build`
+* **Start Command:** `npm start`
+* **Root Directory on Render:** Leave blank (root-level monorepo)
+* **Environment Variables:**
+  - `PORT`: (Provided automatically by hosting provider; defaults to `3001` locally)
+  - `QLOO_API_KEY`: Your official Qloo API key
+  - `QLOO_BASE_URL`: `https://hackathon.api.qloo.com` (default)
+  - `MODE`: `live` (or `sample` for offline judging demo)
+  - `LLM_PROVIDER`: `gemini`
+  - `LLM_API_KEY`: (Optional, when live LLM provider is enabled)
 
 ---
 
@@ -150,7 +164,7 @@ npm run build
 - [x] Functional web application with real Qloo API adapter.
 - [x] Agentic workflow (Extraction → Resolution → Discovery → Ranking → Rewrite → Verification → Evidence).
 - [x] Verifiable evidence provenance (server-issued observation IDs).
-- [x] Automated test suite passing (10/10 tests pass).
+- [x] Automated test suite passing (14/14 tests pass).
 - [x] MIT Open Source License included.
 - [x] Responsive editorial design ("The Proof Sheet") with keyboard accessibility and reduced-motion support.
 - [x] Clear documentation and smoke test reports.
