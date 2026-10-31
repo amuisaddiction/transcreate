@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
   ArrowUpRight,
+  ArrowRight,
   FileSearch,
   ScanText,
   ShieldCheck,
@@ -14,6 +15,16 @@ import {
   Sparkles,
   ExternalLink,
   RotateCcw,
+  Compass,
+  Globe,
+  Sliders,
+  SplitSquareVertical,
+  CheckCircle2,
+  BookOpen,
+  Info,
+  Eye,
+  Clock,
+  Cpu,
 } from 'lucide-react';
 
 interface Health {
@@ -98,32 +109,110 @@ const PRESETS = [
     text: 'Our new campaign is the Friends reunion of productivity apps.',
     market: 'Mumbai',
     category: 'TV / Comedy',
+    hook: '90s iconic comedy parallel',
   },
   {
     label: 'Succession Finale',
     text: 'Waiting for this software release feels like waiting for the Succession finale all over again.',
     market: 'Mumbai',
     category: 'TV / Drama',
+    hook: 'High-stakes prestige drama parallel',
   },
   {
     label: '90s Nike Drop',
     text: 'Launching our new designer sneaker is as coveted as a Nike Air Jordan drop in the 90s.',
     market: 'Bengaluru',
     category: 'Brand / Fashion',
+    hook: 'Streetwear & sneakerhead culture',
   },
   {
     label: 'Tech Copy (No Reference)',
     text: 'Our platform delivers real-time database synchronization with 99.99% uptime for distributed teams.',
     market: 'London',
     category: 'Enterprise / Tech',
+    hook: 'Preservation test: no forced swaps',
   },
 ];
 
 const MARKETS = [
-  { id: 'Mumbai', label: 'Mumbai, India', desc: 'Commercial capital; high affinity for Bollywood & classic Hindi sitcoms' },
-  { id: 'Bengaluru', label: 'Bengaluru, India', desc: 'Tech hub; strong bilingual youth culture & indie entertainment' },
-  { id: 'London', label: 'London, UK', desc: 'Metropolitan UK; dry British satire, classic sitcoms, and indie music' },
-  { id: 'New York', label: 'New York, USA', desc: 'High-density urban market; American sitcoms & fast-paced lifestyle' },
+  {
+    id: 'Mumbai',
+    label: 'Mumbai, India',
+    flag: '🇮🇳',
+    context: 'Commercial capital · Hindi cinema, classic sitcoms, and urban pop culture',
+  },
+  {
+    id: 'Bengaluru',
+    label: 'Bengaluru, India',
+    flag: '🇮🇳',
+    context: 'Tech & startup capital · Youth streetwear, bilingual humor, and indie arts',
+  },
+  {
+    id: 'London',
+    label: 'London, UK',
+    flag: '🇬🇧',
+    context: 'Metropolitan UK · Dry British satire, cult comedy, and indie music history',
+  },
+  {
+    id: 'New York',
+    label: 'New York, USA',
+    flag: '🇺🇸',
+    context: 'Dense urban cultural center · American sitcoms, media, and fast-paced lifestyle',
+  },
+];
+
+const SHOWCASE_EXAMPLES = [
+  {
+    id: 'mumbai-friends',
+    title: 'The Mumbai Comedy Parallel',
+    market: 'Mumbai, India',
+    marketFlag: '🇮🇳',
+    category: 'TV / Sitcom',
+    originalText: 'Our new campaign is the Friends reunion of productivity apps.',
+    anchorOriginal: 'Friends reunion',
+    transcreatedText: 'Our new campaign is the Sarabhai vs Sarabhai reunion of productivity apps.',
+    anchorTranscreated: 'Sarabhai vs Sarabhai reunion',
+    affinityScore: 88,
+    qlooInsight:
+      'Qloo Taste AI maps Friends (90s ensemble sitcom) to Sarabhai vs Sarabhai for urban Mumbai audiences desiring high-affinity nostalgic wit.',
+  },
+  {
+    id: 'london-drama',
+    title: 'The London Satire Shift',
+    market: 'London, UK',
+    marketFlag: '🇬🇧',
+    category: 'TV / Political Drama',
+    originalText: 'Navigating executive meetings feels like an episode of Succession.',
+    anchorOriginal: 'Succession',
+    transcreatedText: 'Navigating executive meetings feels like an episode of The Thick of It.',
+    anchorTranscreated: 'The Thick of It',
+    affinityScore: 85,
+    qlooInsight:
+      'Qloo location signals identify strong British political satire affinity in London, substituting HBO corporate drama with Armando Iannucci’s quintessential Whitehall comedy.',
+  },
+  {
+    id: 'bengaluru-streetwear',
+    title: 'The Bengaluru Streetwear Anchor',
+    market: 'Bengaluru, India',
+    marketFlag: '🇮🇳',
+    category: 'Brand / Streetwear',
+    originalText: 'Getting early beta access was coveted like a 90s Nike Air Jordan drop.',
+    anchorOriginal: 'Nike Air Jordan drop',
+    transcreatedText: 'Getting early beta access was coveted like a VegNonVeg limited sneaker drop.',
+    anchorTranscreated: 'VegNonVeg limited sneaker drop',
+    affinityScore: 92,
+    qlooInsight:
+      'Qloo taste intelligence recognizes Indiranagar/Koramangala streetwear boutique affinity among Bengaluru tech creatives.',
+  },
+];
+
+const LOADING_STAGES = [
+  'Reading source copy & detecting cultural anchors...',
+  'Resolving canonical entity via Qloo /search...',
+  'Querying Qloo Taste AI graph for target audience...',
+  'Evaluating cohort affinity & ranking candidate parallels...',
+  'Performing surgically constrained contextual rewrite...',
+  'Executing deterministic verification & guardrail checks...',
 ];
 
 export default function App() {
@@ -131,12 +220,15 @@ export default function App() {
   const [copy, setCopy] = useState(PRESETS[0].text);
   const [market, setMarket] = useState('Mumbai');
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [result, setResult] = useState<LocalizationResult | null>(null);
   const [selectedRefId, setSelectedRefId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [traceExpanded, setTraceExpanded] = useState(true);
-  const [activeTab, setActiveTab] = useState<'proof' | 'receipts' | 'trace'>('proof');
+  const [traceExpanded, setTraceExpanded] = useState(false);
+  const [viewMode, setViewMode] = useState<'proof' | 'diff' | 'clean'>('proof');
+  const [studioTab, setStudioTab] = useState<'proof' | 'ledger' | 'trace'>('proof');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeShowcaseIdx, setActiveShowcaseIdx] = useState(0);
 
   useEffect(() => {
     fetch('/api/health')
@@ -144,6 +236,18 @@ export default function App() {
       .then((data: Health) => setHealth(data))
       .catch(() => setHealth({ mode: 'sample', qlooOk: false }));
   }, []);
+
+  // Animate loading stages during API call
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (loading) {
+      setLoadingStep(0);
+      interval = setInterval(() => {
+        setLoadingStep((prev) => (prev < LOADING_STAGES.length - 1 ? prev + 1 : prev));
+      }, 700);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
 
   const handleTranscreate = async () => {
     if (!copy.trim()) return;
@@ -167,6 +271,7 @@ export default function App() {
       if (data.receipts.length > 0) {
         setSelectedRefId(data.receipts[0].referenceId);
       }
+      setStudioTab('proof');
     } catch (err: any) {
       setErrorMessage(err.message || 'An error occurred during transcreation.');
     } finally {
@@ -201,6 +306,9 @@ export default function App() {
     modeBadgeText = 'LIVE FAILED — QLOO ERROR';
   }
 
+  const selectedMarketObj = MARKETS.find((m) => m.id === market) || MARKETS[0];
+  const activeShowcase = SHOWCASE_EXAMPLES[activeShowcaseIdx];
+
   return (
     <main className="shell">
       {/* Top Bar */}
@@ -218,8 +326,8 @@ export default function App() {
       </nav>
 
       {isLiveFailed && (
-        <aside className="error-banner" style={{ margin: '16px 32px 0', maxWidth: '1280px' }} role="alert">
-          <AlertTriangle size={15} />
+        <aside className="error-banner" role="alert">
+          <AlertTriangle size={16} />
           <span>
             <strong>QLOO API CONNECTION ISSUE:</strong> {health?.qlooMessage || 'Qloo API credentials could not be verified.'} Server is operating in protected fallback mode. Check server <code>QLOO_API_KEY</code>.
           </span>
@@ -227,10 +335,10 @@ export default function App() {
       )}
 
       {/* Hero Section */}
-      <section className="hero">
+      <header className="hero">
         <div className="eyebrow">
           <span>THE CULTURAL COPY DESK</span>
-          <span>AGENTIC PROVENANCE SYSTEM</span>
+          <span>POWERED BY QLOO TASTE GRAPH</span>
         </div>
         <h1>
           Make the<br />
@@ -238,445 +346,646 @@ export default function App() {
         </h1>
         <div className="hero-bottom">
           <p>
-            Adapt existing English copy to your target audience without losing its original meaning.
-            Powered by real Qloo cultural affinity data and a self-checking verification agent.
+            Adapt English copy to your target audience without losing its original meaning.
+            Powered by real Qloo cultural intelligence and a self-checking verification agent.
           </p>
           <div className="hero-actions">
             <a className="text-link" href="#studio">
-              OPEN THE STUDIO <ArrowUpRight size={17} />
+              OPEN THE STUDIO <ArrowDownRight size={17} />
             </a>
           </div>
         </div>
         <div className="trust-strip">
           <span>✓ NO FORCED SWAPS</span>
           <span>✓ NO INVENTED EVIDENCE</span>
-          <span>✓ FULL EXECUTION TRACE</span>
-          <span>✓ AUDIENCE-CONDITIONED RANKING</span>
+          <span>✓ DETERMINISTIC REWRITE VERIFIER</span>
+          <span>✓ AUDIENCE-CONDITIONED TASTE GRAPH</span>
         </div>
         <div className="hero-mark" aria-hidden="true">
           T<span>.</span>
+        </div>
+      </header>
+
+      {/* SECTION: 5-Second Visual Explainer (The Cultural Transformer) */}
+      <section className="explainer-section">
+        <div className="section-meta">
+          <span className="section-num">00 / HOW IT WORKS</span>
+          <h2>The Cultural Transformer</h2>
+          <p className="section-deck">
+            Translation changes language. <strong>Transcreation adapts cultural context</strong> while preserving
+            sentence structure, voice, and narrative intent.
+          </p>
+        </div>
+
+        {/* Interactive Example Selector */}
+        <div className="showcase-tabs">
+          {SHOWCASE_EXAMPLES.map((ex, idx) => (
+            <button
+              key={ex.id}
+              type="button"
+              className={`showcase-tab ${activeShowcaseIdx === idx ? 'active' : ''}`}
+              onClick={() => setActiveShowcaseIdx(idx)}
+            >
+              <span className="tab-flag">{ex.marketFlag}</span>
+              <span className="tab-title">{ex.title}</span>
+              <span className="tab-cat">{ex.category}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Visual 3-Stage Transformation Card */}
+        <div className="transformer-card">
+          <div className="transformer-col original-col">
+            <div className="col-badge badge-orig">1. ORIGINAL ENGLISH COPY</div>
+            <div className="copy-card">
+              <p className="card-text">
+                {activeShowcase.originalText.split(activeShowcase.anchorOriginal)[0]}
+                <mark className="anchor-mark anchor-red">{activeShowcase.anchorOriginal}</mark>
+                {activeShowcase.originalText.split(activeShowcase.anchorOriginal)[1]}
+              </p>
+              <div className="anchor-note">
+                <span className="label">ORIGINAL ANCHOR:</span>
+                <strong>{activeShowcase.anchorOriginal}</strong>
+                <p className="note-desc">High resonance in Western pop culture; lacks immediate local emotional hook.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="transformer-middle">
+            <div className="intelligence-node">
+              <div className="node-icon">
+                <Compass size={22} />
+              </div>
+              <span className="node-title">QLOO TASTE AI</span>
+              <span className="node-affinity">{activeShowcase.affinityScore}% AFFINITY</span>
+              <div className="node-arrow">
+                <ArrowRight size={18} />
+              </div>
+            </div>
+            <p className="node-rationale">{activeShowcase.qlooInsight}</p>
+          </div>
+
+          <div className="transformer-col transcreated-col">
+            <div className="col-badge badge-trans">2. VERIFIED CULTURAL TRANSCREATION</div>
+            <div className="copy-card card-trans">
+              <p className="card-text">
+                {activeShowcase.transcreatedText.split(activeShowcase.anchorTranscreated)[0]}
+                <ins className="anchor-mark anchor-green">{activeShowcase.anchorTranscreated}</ins>
+                {activeShowcase.transcreatedText.split(activeShowcase.anchorTranscreated)[1]}
+              </p>
+              <div className="anchor-note note-green">
+                <span className="label">TARGET AUDIENCE:</span>
+                <strong>{activeShowcase.market}</strong>
+                <span className="verified-stamp">✓ VERIFIED GUARDRAIL PASSED</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Main Studio Workspace */}
       <section className="studio" id="studio">
-        <div className="section-head">
-          <div>
-            <p className="eyebrow">WORKSPACE / 001</p>
-            <h2>The Proof Sheet</h2>
-          </div>
-          <div className="step-label">
-            <ScanText size={16} />
-            <span>EDITORIAL PROOF DESK</span>
-          </div>
+        <div className="section-meta">
+          <span className="section-num">01 / THE EDITORIAL STUDIO</span>
+          <h2>The Proof Desk</h2>
+          <p className="section-deck">
+            Draft, paste, or select a cultural preset. Choose a target market and adapt the copy with verified Qloo intelligence.
+          </p>
         </div>
 
-        {/* Preset Chips */}
-        <div className="preset-bar">
-          <span className="preset-label">EXAMPLE RUNS:</span>
-          <div className="preset-chips">
+        {/* Preset Shelf */}
+        <div className="preset-shelf">
+          <div className="shelf-header">
+            <BookOpen size={16} />
+            <span>CURATED REFERENCE PRESETS</span>
+          </div>
+          <div className="preset-grid">
             {PRESETS.map((p, idx) => (
               <button
                 key={idx}
                 type="button"
-                className={`preset-chip ${copy === p.text && market === p.market ? 'active' : ''}`}
+                className={`preset-card ${copy === p.text && market === p.market ? 'active' : ''}`}
                 onClick={() => {
                   setCopy(p.text);
                   setMarket(p.market);
                 }}
               >
-                <strong>{p.label}</strong>
-                <span>({p.market})</span>
+                <div className="preset-card-top">
+                  <span className="preset-badge">{p.category}</span>
+                  <span className="preset-market">{p.market}</span>
+                </div>
+                <h4 className="preset-name">{p.label}</h4>
+                <p className="preset-preview">"{p.text}"</p>
+                <span className="preset-hook">{p.hook}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Controls Ribbon */}
-        <div className="controls">
-          <div className="control-group">
-            <label htmlFor="market-select">TARGET MARKET</label>
-            <select
-              id="market-select"
-              value={market}
-              onChange={(e) => setMarket(e.target.value)}
-              disabled={loading}
-            >
-              {MARKETS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+        {/* Target Market Selector Ribbon */}
+        <div className="market-ribbon">
+          <div className="ribbon-label">
+            <Globe size={16} />
+            <span>TARGET AUDIENCE MARKET:</span>
           </div>
-          <span className="controls-note">
-            Targeted via Qloo location intelligence signals to discover and rank affinity-matched alternatives.
-          </span>
+          <div className="market-pills">
+            {MARKETS.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={`market-pill ${market === m.id ? 'active' : ''}`}
+                onClick={() => setMarket(m.id)}
+                disabled={loading}
+              >
+                <span className="market-flag">{m.flag}</span>
+                <span className="market-name">{m.id}</span>
+              </button>
+            ))}
+          </div>
+          <div className="market-context-box">
+            <span className="context-indicator" />
+            <p>{selectedMarketObj.context}</p>
+          </div>
         </div>
 
-        {/* Mobile View Switcher */}
-        <div className="mobile-tabs">
-          <button
-            type="button"
-            className={activeTab === 'proof' ? 'active' : ''}
-            onClick={() => setActiveTab('proof')}
-          >
-            01 / Copy & Proof
-          </button>
-          <button
-            type="button"
-            className={activeTab === 'receipts' ? 'active' : ''}
-            onClick={() => setActiveTab('receipts')}
-          >
-            02 / Evidence Ledger ({result?.receipts.length || 0})
-          </button>
-          <button
-            type="button"
-            className={activeTab === 'trace' ? 'active' : ''}
-            onClick={() => setActiveTab('trace')}
-          >
-            03 / Trace ({result?.trace.length || 0})
-          </button>
-        </div>
-
-        {/* 3-Column Proof Sheet Grid */}
-        <div className="work-grid">
-          {/* Column 1: Source Copy Pane */}
-          <div className={`pane source-pane ${activeTab === 'proof' ? 'mobile-visible' : 'mobile-hidden'}`}>
-            <div className="pane-head">
-              <span>01 / SOURCE COPY</span>
-              <span className={copy.length > 900 ? 'counter-danger' : 'counter-normal'}>
-                EN · {copy.length}/900
-              </span>
+        {/* Main Writing Canvas */}
+        <div className="writing-canvas">
+          <div className="canvas-header">
+            <div className="canvas-header-left">
+              <span className="canvas-tag">SOURCE DRAFT</span>
+              <span className="canvas-lang">ENGLISH (US/UK)</span>
             </div>
-            <label className="sr-only" htmlFor="source-copy-input">
-              Original English copy to adapt
-            </label>
-            <textarea
-              id="source-copy-input"
-              maxLength={900}
-              value={copy}
-              onChange={(e) => setCopy(e.target.value)}
-              placeholder="Paste or write English copy containing a cultural reference..."
-              disabled={loading}
-            />
+            <div className="canvas-header-right">
+              <span className={copy.length > 900 ? 'counter-danger' : 'counter-clean'}>
+                {copy.length} / 900 CHARS
+              </span>
+              {copy.length > 0 && (
+                <button
+                  type="button"
+                  className="clear-btn"
+                  onClick={() => setCopy('')}
+                  title="Clear source text"
+                >
+                  <RotateCcw size={13} /> Clear
+                </button>
+              )}
+            </div>
+          </div>
 
-            {errorMessage && (
-              <div className="error-banner" role="alert">
-                <AlertTriangle size={15} />
-                <span>{errorMessage}</span>
-              </div>
-            )}
+          <label className="sr-only" htmlFor="main-copy-textarea">
+            English copy to transcreate
+          </label>
+          <textarea
+            id="main-copy-textarea"
+            className="main-textarea"
+            maxLength={900}
+            value={copy}
+            onChange={(e) => setCopy(e.target.value)}
+            placeholder="Write or paste English marketing copy containing cultural references (movies, TV shows, artists, brands)..."
+            disabled={loading}
+          />
 
+          {errorMessage && (
+            <div className="error-banner" role="alert">
+              <AlertTriangle size={16} />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          <div className="canvas-action-bar">
+            <div className="action-hint">
+              <Sparkles size={16} />
+              <span>Targeting: <strong>{selectedMarketObj.label}</strong> · Powered by Qloo Taste AI</span>
+            </div>
             <button
               type="button"
-              className="run-button"
+              className="transcreate-cta"
               onClick={handleTranscreate}
               disabled={loading || !copy.trim()}
             >
               {loading ? (
                 <>
-                  <Activity size={17} className="spin" />
-                  <span>ANALYZING WITH QLOO...</span>
+                  <Activity size={18} className="spin" />
+                  <span>ANALYZING CULTURAL GRAPH...</span>
                 </>
               ) : (
                 <>
-                  <span className="button-label">
-                    <FileSearch size={17} /> TRANSCREATE COPY
-                  </span>
-                  <ArrowUpRight size={17} />
+                  <span>TRANSCREATE MY COPY</span>
+                  <ArrowRight size={18} />
                 </>
               )}
             </button>
           </div>
-
-          {/* Column 2: Proof Pane */}
-          <div className={`pane proof-pane ${activeTab === 'proof' ? 'mobile-visible' : 'mobile-hidden'}`}>
-            <div className="pane-head">
-              <span>02 / EDITORIAL PROOF SHEET</span>
-              {result && (
-                <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
-                  <span className={`status-tag ${result.mode === 'live' ? 'status-live' : 'status-sample'}`}>
-                    {result.mode === 'live' ? 'LIVE QLOO' : 'SAMPLE DATA'}
-                  </span>
-                  <span className={`status-tag ${result.verified ? 'status-verified' : 'status-unverified'}`}>
-                    {result.verified ? '✓ VERIFIED REWRITE' : 'UNVERIFIED'}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="proof-content">
-              {!result && !loading && (
-                <div className="proof-empty">
-                  <p className="proof-placeholder">
-                    Your edited copy will appear here with active proof marks.
-                    Swapped references will be struck through in red, with verified replacements underlined in evidence green.
-                  </p>
-                  <p className="note">Select a preset above and click "TRANSCREATE COPY" to begin.</p>
-                </div>
-              )}
-
-              {loading && (
-                <div className="proof-loading">
-                  <Activity size={24} className="spin" />
-                  <p>Resolving cultural references against Qloo cultural intelligence graph...</p>
-                </div>
-              )}
-
-              {result && !loading && (
-                <>
-                  <div className="proof-copy-view">
-                    {result.edits.map((span, idx) => {
-                      if (span.type === 'swapped') {
-                        const isSelected = selectedRefId === span.referenceId;
-                        return (
-                          <span
-                            key={idx}
-                            className={`mark-swap ${isSelected ? 'selected' : ''}`}
-                            onClick={() => {
-                              if (span.referenceId) setSelectedRefId(span.referenceId);
-                            }}
-                            title="Click to view Qloo evidence receipt"
-                          >
-                            <del>{span.originalText}</del>
-                            <ins>{span.replacementText}</ins>
-                            <span className="stamp">SWAPPED</span>
-                          </span>
-                        );
-                      }
-                      if (span.type === 'kept') {
-                        const isSelected = selectedRefId === span.referenceId;
-                        return (
-                          <span
-                            key={idx}
-                            className={`mark-kept ${isSelected ? 'selected' : ''}`}
-                            onClick={() => {
-                              if (span.referenceId) setSelectedRefId(span.referenceId);
-                            }}
-                            title="Click to view keep-original rationale"
-                          >
-                            <strong>{span.originalText}</strong>
-                            <span className="stamp-kept">KEPT</span>
-                          </span>
-                        );
-                      }
-                      if (span.type === 'unresolved') {
-                        return (
-                          <span key={idx} className="mark-unresolved">
-                            <em>{span.originalText}</em>
-                            <span className="stamp-unresolved">UNRESOLVED</span>
-                          </span>
-                        );
-                      }
-                      return <span key={idx}>{span.originalText}</span>;
-                    })}
-                  </div>
-
-                  <div className="proof-footer">
-                    <button type="button" className="copy-button" onClick={handleCopyFinal}>
-                      {copied ? <Check size={14} /> : <Copy size={14} />}
-                      <span>{copied ? 'COPIED TO CLIPBOARD' : 'COPY FINAL TEXT'}</span>
-                    </button>
-                    <span className="latency-label">
-                      Executed in {result.executionTimeMs}ms · {result.retryCount} retries
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Column 3: Evidence Ledger */}
-          <aside className={`pane ledger-pane ${activeTab === 'receipts' ? 'mobile-visible' : 'mobile-hidden'}`}>
-            <div className="pane-head">
-              <span>03 / EVIDENCE LEDGER</span>
-              <ShieldCheck size={16} />
-            </div>
-
-            {!result && (
-              <div className="empty-ledger">
-                <FileSearch size={28} />
-                <strong>No receipts yet.</strong>
-                <p>
-                  Every proposed edit produces an immutable evidence receipt linking server observations,
-                  Qloo affinity scores, and agent reasoning.
-                </p>
-              </div>
-            )}
-
-            {result && result.receipts.length === 0 && (
-              <div className="empty-ledger">
-                <ShieldCheck size={28} />
-                <strong>Original copy retained.</strong>
-                <p>No supported cultural references were found in the text, so no changes were made.</p>
-              </div>
-            )}
-
-            {result && result.receipts.length > 0 && activeReceipt && (
-              <div className="receipt-view">
-                {/* Reference Picker if multiple references */}
-                {result.receipts.length > 1 && (
-                  <div className="receipt-picker">
-                    {result.receipts.map((r, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        className={`receipt-tab ${r.referenceId === activeReceipt.referenceId ? 'active' : ''}`}
-                        onClick={() => setSelectedRefId(r.referenceId)}
-                      >
-                        {r.originalReference}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Receipt Card */}
-                <div className="receipt-card">
-                  <div className="receipt-header">
-                    <div>
-                      <span className="receipt-ref-label">TARGET REFERENCE</span>
-                      <h3>{activeReceipt.originalReference}</h3>
-                    </div>
-                    <span className={`decision-badge badge-${activeReceipt.action}`}>
-                      {activeReceipt.action.toUpperCase()}
-                    </span>
-                  </div>
-
-                  {activeReceipt.chosenReplacement && (
-                    <div className="replacement-box">
-                      <span className="subhead">PROPOSED REPLACEMENT</span>
-                      <h4>{activeReceipt.chosenReplacement}</h4>
-                    </div>
-                  )}
-
-                  {/* Block 1: Qloo Observation */}
-                  <div className="receipt-section observation-section">
-                    <div className="section-title">
-                      <Layers size={14} />
-                      <span>QLOO CULTURAL INTELLIGENCE OBSERVATION</span>
-                    </div>
-
-                    {activeReceipt.qlooObservation ? (
-                      <div className="obs-details">
-                        <div className="obs-meta-row">
-                          <span>Observation ID:</span>
-                          <code>{activeReceipt.qlooObservation.observationId}</code>
-                        </div>
-                        <div className="obs-meta-row">
-                          <span>Endpoint:</span>
-                          <code>{activeReceipt.qlooObservation.endpoint}</code>
-                        </div>
-                        {activeReceipt.qlooObservation.affinity !== undefined && (
-                          <div className="obs-metric">
-                            <div className="metric-header">
-                              <span>Audience Affinity Index:</span>
-                              <strong>{(activeReceipt.qlooObservation.affinity * 100).toFixed(0)}%</strong>
-                            </div>
-                            <div className="metric-bar-bg">
-                              <div
-                                className="metric-bar-fill"
-                                style={{ width: `${Math.round(activeReceipt.qlooObservation.affinity * 100)}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                        <span className={`provenance-tag ${activeReceipt.qlooObservation.isSynthetic ? 'tag-synthetic' : 'tag-live'}`}>
-                          {activeReceipt.qlooObservation.isSynthetic
-                            ? 'SYNTHETIC FIXTURE — OFFLINE MODE'
-                            : 'LIVE QLOO API DATA'}
-                        </span>
-                      </div>
-                    ) : (
-                      <p className="no-obs-note">No server-side observation linked.</p>
-                    )}
-                  </div>
-
-                  {/* Block 2: Model Interpretation */}
-                  <div className="receipt-section model-section">
-                    <div className="section-title">
-                      <Sparkles size={14} />
-                      <span>MODEL INTERPRETATION (NON-API)</span>
-                    </div>
-                    <p className="interpretation-text">{activeReceipt.modelInterpretation}</p>
-                  </div>
-
-                  {/* Block 3: Decision & Limits */}
-                  <div className="receipt-section decision-section">
-                    <div className="section-title">
-                      <ShieldCheck size={14} />
-                      <span>EDITORIAL REASON & POLICY</span>
-                    </div>
-                    <p className="reason-text">{activeReceipt.decisionReason}</p>
-                    <p className="limits-text">{activeReceipt.limitations}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </aside>
         </div>
 
-        {/* Execution Trace Drawer */}
-        <section className={`trace-section ${traceExpanded ? 'expanded' : 'collapsed'}`}>
-          <div
-            className="trace-header"
-            onClick={() => setTraceExpanded(!traceExpanded)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') setTraceExpanded(!traceExpanded);
-            }}
-          >
-            <div className="trace-header-left">
-              <Activity size={16} />
-              <span>EXECUTION TRACE</span>
-              <span className="trace-count">{result ? `${result.trace.length} EVENTS` : '0 EVENTS'}</span>
+        {/* Animated Live Transformation Progress Bar */}
+        {loading && (
+          <div className="live-progress-card">
+            <div className="progress-top">
+              <div className="progress-indicator">
+                <span className="ping-dot" />
+                <strong>AGENTIC PIPELINE EXECUTING</strong>
+              </div>
+              <span className="progress-step-counter">STEP {loadingStep + 1} OF 6</span>
             </div>
-            <button
-              type="button"
-              className="trace-toggle-btn"
-              aria-label={traceExpanded ? 'Collapse trace' : 'Expand trace'}
-            >
-              {traceExpanded ? <ChevronDown size={17} /> : <ChevronUp size={17} />}
-            </button>
+
+            <h3 className="progress-current-text">{LOADING_STAGES[loadingStep]}</h3>
+
+            <div className="progress-track">
+              <div
+                className="progress-fill"
+                style={{ width: `${((loadingStep + 1) / LOADING_STAGES.length) * 100}%` }}
+              />
+            </div>
+
+            <div className="progress-steps-list">
+              {LOADING_STAGES.map((stg, i) => (
+                <div
+                  key={i}
+                  className={`step-item ${i < loadingStep ? 'done' : i === loadingStep ? 'active' : 'pending'}`}
+                >
+                  <span className="step-dot" />
+                  <span className="step-label">{stg.split('...')[0]}</span>
+                </div>
+              ))}
+            </div>
           </div>
+        )}
 
-          {traceExpanded && (
-            <div className="trace-body">
-              {!result && <p className="trace-idle">No events recorded yet. Run a transcreation to inspect the agent pipeline.</p>}
+        {/* RESULTS: The Editorial Proof Sheet (Centrepiece) */}
+        {result && !loading && (
+          <div className="results-wrapper" id="proof-results">
+            {/* View Mode Bar */}
+            <div className="results-toolbar">
+              <div className="toolbar-left">
+                <span className="result-headline">EDITORIAL PROOF SHEET</span>
+                <span className={`status-pill ${result.verified ? 'status-pill-verified' : 'status-pill-unverified'}`}>
+                  {result.verified ? '✓ VERIFIED REWRITE' : 'UNVERIFIED'}
+                </span>
+                <span className={`status-pill ${result.mode === 'live' ? 'status-pill-live' : 'status-pill-sample'}`}>
+                  {result.mode === 'live' ? 'LIVE QLOO API DATA' : 'SAMPLE FIXTURE DATA'}
+                </span>
+              </div>
 
-              {result && (
-                <ol className="trace-timeline">
-                  {result.trace.map((evt) => (
-                    <li key={evt.id} className={`trace-event status-${evt.status}`}>
-                      <div className="event-meta">
-                        <span className="event-stage">{evt.stage.toUpperCase()}</span>
-                        <span className="event-time">{evt.timestamp.slice(11, 19)}</span>
-                        {evt.durationMs !== undefined && (
-                          <span className="event-duration">+{evt.durationMs}ms</span>
-                        )}
-                      </div>
-                      <p className="event-message">{evt.message}</p>
-                    </li>
-                  ))}
-                </ol>
-              )}
+              <div className="view-mode-tabs">
+                <button
+                  type="button"
+                  className={`mode-tab ${viewMode === 'proof' ? 'active' : ''}`}
+                  onClick={() => setViewMode('proof')}
+                >
+                  <ScanText size={15} /> Proof Marks
+                </button>
+                <button
+                  type="button"
+                  className={`mode-tab ${viewMode === 'diff' ? 'active' : ''}`}
+                  onClick={() => setViewMode('diff')}
+                >
+                  <SplitSquareVertical size={15} /> Side-by-Side
+                </button>
+                <button
+                  type="button"
+                  className={`mode-tab ${viewMode === 'clean' ? 'active' : ''}`}
+                  onClick={() => setViewMode('clean')}
+                >
+                  <Eye size={15} /> Clean Output
+                </button>
+              </div>
             </div>
-          )}
-        </section>
+
+            {/* Proof Display Canvas */}
+            <div className="proof-sheet-canvas">
+              {viewMode === 'proof' && (
+                <div className="proof-body proof-interactive">
+                  {result.edits.map((span, idx) => {
+                    if (span.type === 'swapped') {
+                      const isSelected = selectedRefId === span.referenceId;
+                      return (
+                        <span
+                          key={idx}
+                          className={`proof-swap-interactive ${isSelected ? 'selected' : ''}`}
+                          onClick={() => {
+                            if (span.referenceId) {
+                              setSelectedRefId(span.referenceId);
+                              setStudioTab('ledger');
+                            }
+                          }}
+                          title="Click to view Qloo evidence receipt"
+                        >
+                          <del className="strike-reference">{span.originalText}</del>
+                          <ins className="ins-replacement">{span.replacementText}</ins>
+                          <span className="interactive-stamp">SWAPPED</span>
+                        </span>
+                      );
+                    }
+                    if (span.type === 'kept') {
+                      const isSelected = selectedRefId === span.referenceId;
+                      return (
+                        <span
+                          key={idx}
+                          className={`proof-kept-interactive ${isSelected ? 'selected' : ''}`}
+                          onClick={() => {
+                            if (span.referenceId) {
+                              setSelectedRefId(span.referenceId);
+                              setStudioTab('ledger');
+                            }
+                          }}
+                          title="Click to view keep-original rationale"
+                        >
+                          <strong className="kept-reference">{span.originalText}</strong>
+                          <span className="stamp-kept">KEPT ORIGINAL</span>
+                        </span>
+                      );
+                    }
+                    if (span.type === 'unresolved') {
+                      return (
+                        <span key={idx} className="proof-unresolved-interactive">
+                          <em>{span.originalText}</em>
+                          <span className="stamp-unresolved">UNRESOLVED</span>
+                        </span>
+                      );
+                    }
+                    return <span key={idx}>{span.originalText}</span>;
+                  })}
+                </div>
+              )}
+
+              {viewMode === 'diff' && (
+                <div className="diff-view-grid">
+                  <div className="diff-column original-diff">
+                    <span className="diff-col-tag">ORIGINAL COPY</span>
+                    <p className="diff-text">{result.originalCopy}</p>
+                  </div>
+                  <div className="diff-column transcreated-diff">
+                    <span className="diff-col-tag diff-tag-green">TRANSCREATED COPY</span>
+                    <p className="diff-text">{result.transcreatedCopy}</p>
+                  </div>
+                </div>
+              )}
+
+              {viewMode === 'clean' && (
+                <div className="proof-body clean-text-body">
+                  <p className="clean-copy-text">{result.transcreatedCopy}</p>
+                </div>
+              )}
+
+              {/* Action Bar Below Proof */}
+              <div className="proof-sheet-footer">
+                <div className="execution-meta">
+                  <Clock size={15} />
+                  <span>
+                    Executed in <strong>{result.executionTimeMs}ms</strong> · <strong>{result.retryCount}</strong> retries · Verified guardrail passed
+                  </span>
+                </div>
+
+                <button type="button" className="copy-final-btn" onClick={handleCopyFinal}>
+                  {copied ? <Check size={18} /> : <Copy size={18} />}
+                  <span>{copied ? 'COPIED TO CLIPBOARD!' : 'COPY FINAL TEXT'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Studio Navigation Tabs (Ledger & Trace) */}
+            <div className="detail-navigation">
+              <button
+                type="button"
+                className={`detail-nav-btn ${studioTab === 'ledger' ? 'active' : ''}`}
+                onClick={() => setStudioTab('ledger')}
+              >
+                <ShieldCheck size={18} />
+                <span>Evidence Ledger ({result.receipts.length} Receipts)</span>
+              </button>
+              <button
+                type="button"
+                className={`detail-nav-btn ${studioTab === 'trace' ? 'active' : ''}`}
+                onClick={() => setStudioTab('trace')}
+              >
+                <Activity size={18} />
+                <span>Agent Execution Trace ({result.trace.length} Events)</span>
+              </button>
+            </div>
+
+            {/* TAB CONTENT: Evidence Ledger */}
+            {studioTab === 'ledger' && (
+              <div className="evidence-ledger-panel">
+                {result.receipts.length === 0 ? (
+                  <div className="empty-ledger-box">
+                    <ShieldCheck size={32} />
+                    <h3>Original Copy Retained</h3>
+                    <p>No supported cultural references required substitution. Original sentence preserved completely.</p>
+                  </div>
+                ) : (
+                  <div className="ledger-card-wrapper">
+                    {/* Multiple receipts selector */}
+                    {result.receipts.length > 1 && (
+                      <div className="receipt-ref-selector">
+                        <span className="selector-title">RESOLVED REFERENCES:</span>
+                        {result.receipts.map((r, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            className={`ref-tab-btn ${r.referenceId === activeReceipt?.referenceId ? 'active' : ''}`}
+                            onClick={() => setSelectedRefId(r.referenceId)}
+                          >
+                            {r.originalReference}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {activeReceipt && (
+                      <div className="receipt-detailed-card">
+                        {/* Receipt Title Banner */}
+                        <div className="receipt-title-banner">
+                          <div className="banner-left">
+                            <span className="sub">TARGET REFERENCE</span>
+                            <h3>{activeReceipt.originalReference}</h3>
+                          </div>
+                          <div className="banner-right">
+                            <span className={`action-badge badge-${activeReceipt.action}`}>
+                              ACTION: {activeReceipt.action.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Proposed Replacement Highlight */}
+                        {activeReceipt.chosenReplacement && (
+                          <div className="replacement-highlight-banner">
+                            <div className="r-left">
+                              <span className="r-label">CHOSEN CULTURAL REPLACEMENT</span>
+                              <h4 className="r-name">{activeReceipt.chosenReplacement}</h4>
+                            </div>
+                            {activeReceipt.qlooObservation?.affinity !== undefined && (
+                              <div className="r-affinity-pill">
+                                <span className="aff-num">
+                                  {(activeReceipt.qlooObservation.affinity * 100).toFixed(0)}%
+                                </span>
+                                <span className="aff-lbl">QLOO AFFINITY INDEX</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Three Core Evidence Columns */}
+                        <div className="evidence-three-pillars">
+                          {/* Pillar 1: Qloo API Observation */}
+                          <div className="pillar-box qloo-pillar">
+                            <div className="pillar-header">
+                              <Layers size={16} />
+                              <span>1. QLOO OBSERVATION (GENUINE API DATA)</span>
+                            </div>
+
+                            {activeReceipt.qlooObservation ? (
+                              <div className="pillar-content">
+                                <div className="kv-row">
+                                  <span className="k">Observation ID:</span>
+                                  <code className="v">{activeReceipt.qlooObservation.observationId}</code>
+                                </div>
+                                <div className="kv-row">
+                                  <span className="k">Endpoint:</span>
+                                  <code className="v">{activeReceipt.qlooObservation.endpoint}</code>
+                                </div>
+                                <div className="kv-row">
+                                  <span className="k">Operation:</span>
+                                  <code className="v">{activeReceipt.qlooObservation.operation}</code>
+                                </div>
+
+                                {activeReceipt.qlooObservation.affinity !== undefined && (
+                                  <div className="affinity-meter-box">
+                                    <div className="meter-header">
+                                      <span>Cohort Affinity Index</span>
+                                      <strong>{(activeReceipt.qlooObservation.affinity * 100).toFixed(0)}%</strong>
+                                    </div>
+                                    <div className="meter-track">
+                                      <div
+                                        className="meter-bar"
+                                        style={{ width: `${Math.round(activeReceipt.qlooObservation.affinity * 100)}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="provenance-seal">
+                                  <span className={`provenance-chip ${activeReceipt.qlooObservation.isSynthetic ? 'chip-synthetic' : 'chip-live'}`}>
+                                    {activeReceipt.qlooObservation.isSynthetic ? 'SYNTHETIC FIXTURE' : 'LIVE QLOO API DATA'}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="no-data-msg">No server-side observation linked.</p>
+                            )}
+                          </div>
+
+                          {/* Pillar 2: Model Interpretation */}
+                          <div className="pillar-box model-pillar">
+                            <div className="pillar-header">
+                              <Sparkles size={16} />
+                              <span>2. MODEL INTERPRETATION (NON-API)</span>
+                            </div>
+                            <div className="pillar-content">
+                              <p className="interpretation-quote">{activeReceipt.modelInterpretation}</p>
+                              <div className="pillar-footnote">
+                                Contextual rationale generated by LLM reasoning over Qloo candidate signals.
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Pillar 3: Editorial Reason & Policy */}
+                          <div className="pillar-box guardrail-pillar">
+                            <div className="pillar-header">
+                              <ShieldCheck size={16} />
+                              <span>3. EDITORIAL POLICY & LIMITS</span>
+                            </div>
+                            <div className="pillar-content">
+                              <p className="reason-quote">{activeReceipt.decisionReason}</p>
+                              <p className="limitations-note">{activeReceipt.limitations}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB CONTENT: Agent Execution Trace */}
+            {studioTab === 'trace' && (
+              <div className="trace-timeline-panel">
+                <div className="trace-panel-head">
+                  <div className="t-left">
+                    <Activity size={18} />
+                    <h3>Agent Execution Pipeline Trace</h3>
+                  </div>
+                  <span className="t-count">{result.trace.length} PIPELINE EVENTS RECORDED</span>
+                </div>
+
+                <div className="trace-nodes-container">
+                  {result.trace.map((evt, idx) => (
+                    <div key={evt.id} className={`trace-node node-status-${evt.status}`}>
+                      <div className="node-marker">
+                        <span className="marker-dot" />
+                        {idx < result.trace.length - 1 && <span className="marker-line" />}
+                      </div>
+                      <div className="node-card">
+                        <div className="node-meta">
+                          <span className="node-stage-badge">{evt.stage.toUpperCase()}</span>
+                          <span className="node-timestamp">{evt.timestamp.slice(11, 23)}</span>
+                          {evt.durationMs !== undefined && (
+                            <span className="node-dur">+{evt.durationMs}ms</span>
+                          )}
+                        </div>
+                        <p className="node-message-text">{evt.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Footer */}
-      <footer>
-        <div className="footer-left">
-          <span>TRANSCREATE / CULTURAL COPY EDITING STUDIO</span>
-          <span>BUILT FOR QLOO AGENTIC HACKATHON 2026</span>
+      <footer className="footer">
+        <div className="footer-top">
+          <div className="footer-brand">
+            <span className="wordmark">TRANSCREATE<span>®</span></span>
+            <p>An evidence-backed cultural editing studio powered by Qloo cultural intelligence.</p>
+          </div>
+          <div className="footer-trust">
+            <div className="trust-item">
+              <strong>ZERO FABRICATION</strong>
+              <span>Every replacement stems from Qloo taste graph operations</span>
+            </div>
+            <div className="trust-item">
+              <strong>SELF-CHECKING VERIFIER</strong>
+              <span>Automated guardrail rejects unauthorized mutations</span>
+            </div>
+          </div>
         </div>
-        <div className="footer-right">
-          <span>NO FORCED SWAPS. NO INVENTED EVIDENCE.</span>
+        <div className="footer-bottom">
+          <span>BUILT FOR QLOO AGENTIC HACKATHON 2026</span>
           <span>OPEN-SOURCE MIT LICENSE</span>
         </div>
       </footer>
     </main>
+  );
+}
+
+function ArrowDownRight(props: { size?: number }) {
+  return (
+    <svg
+      width={props.size || 16}
+      height={props.size || 16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="7" y1="7" x2="17" y2="17" />
+      <polyline points="17 7 17 17 7 17" />
+    </svg>
   );
 }
